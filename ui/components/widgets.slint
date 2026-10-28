@@ -1,0 +1,179 @@
+// Small reusable building blocks shared by all pages.
+
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    out property <color> success: #2f9e5a;
+    out property <color> warning: #c7861a;
+    out property <color> error: #d64545;
+    out property <color> info: #3b82c4;
+    out property <color> muted: Palette.foreground.transparentize(0.4);
+    out property <color> card: Palette.alternate-background;
+    out property <length> radius: 8px;
+
+    // Severity levels as sent by the controller: 0 info, 1 success, 2 warning, 3 error.
+    public pure function level-color(level: int) -> color {
+        return level == 1 ? #2f9e5a : level == 2 ? #c7861a : level == 3 ? #d64545 : #3b82c4;
+    }
+
+    public pure function text-color(level: int) -> color {
+        return level == 0 ? Palette.foreground : self.level-color(level);
+    }
+
+    public pure function category-color(category: string) -> color {
+        return category == "Input" ? #3b82c4
+            : category == "Routing" ? #8b5cf6
+            : category == "Delivery" ? #2f9e5a
+            : category == "Target" ? #0f9b9b
+            : #7a7f87;
+    }
+}
+
+export component Card inherits Rectangle {
+    in property <string> title;
+    in property <length> content-spacing: 8px;
+    in property <LayoutAlignment> content-alignment: stretch;
+    background: Theme.card;
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: Palette.border;
+
+    VerticalLayout {
+        padding: 14px;
+        spacing: root.content-spacing;
+        alignment: root.content-alignment;
+        if root.title != "": Text {
+            text: root.title;
+            font-size: 13px;
+            font-weight: 600;
+            color: Theme.muted;
+        }
+        @children
+    }
+}
+
+export component StatusDot inherits Rectangle {
+    in property <color> tint: Theme.info;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background: tint;
+}
+
+export component Pill inherits Rectangle {
+    in property <string> text;
+    in property <color> tint: Theme.info;
+    height: 20px;
+    border-radius: 10px;
+    background: tint.transparentize(0.82);
+    min-width: label.preferred-width + 16px;
+    preferred-width: self.min-width;
+    horizontal-stretch: 0;
+
+    label := Text {
+        x: 8px;
+        width: parent.width - 16px;
+        height: parent.height;
+        text: root.text;
+        color: root.tint;
+        font-size: 11px;
+        font-weight: 600;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+        overflow: elide;
+    }
+}
+
+export component PageHeader inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> subtitle;
+    spacing: 12px;
+
+    VerticalLayout {
+        alignment: center;
+        horizontal-stretch: 1;
+        Text {
+            text: root.title;
+            font-size: 22px;
+            font-weight: 700;
+        }
+        if root.subtitle != "": Text {
+            text: root.subtitle;
+            color: Theme.muted;
+            wrap: word-wrap;
+        }
+    }
+    @children
+}
+
+// A labelled value on the dashboard.
+export component Field inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <color> value-color: Palette.foreground;
+    spacing: 2px;
+
+    Text {
+        text: root.label;
+        font-size: 11px;
+        color: Theme.muted;
+    }
+    Text {
+        text: root.value;
+        color: root.value-color;
+        wrap: word-wrap;
+    }
+}
+
+export component Banner inherits Rectangle {
+    in property <string> text;
+    in property <color> tint: Theme.info;
+    background: tint.transparentize(0.86);
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: tint.transparentize(0.5);
+
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 10px;
+        Rectangle {
+            width: 4px;
+            border-radius: 2px;
+            background: root.tint;
+        }
+        Text {
+            text: root.text;
+            wrap: word-wrap;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    callback clicked();
+    height: 36px;
+    border-radius: 6px;
+    background: active ? Palette.accent-background.transparentize(0.82) : touch.has-hover ? Palette.foreground.transparentize(0.94) : transparent;
+    accessible-role: button;
+    accessible-label: label;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        Text {
+            text: root.label;
+            vertical-alignment: center;
+            font-weight: root.active ? 600 : 400;
+            color: root.active ? Palette.accent-background : Palette.foreground;
+            overflow: elide;
+        }
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}

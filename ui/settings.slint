@@ -1,0 +1,279 @@
+import { AboutSlint, Button, CheckBox, ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
+import { AppState, CapabilityRow, MappingRow } from "state.slint";
+import { Card, PageHeader, Pill, Theme } from "components/widgets.slint";
+
+component SettingRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> hint;
+    spacing: 12px;
+
+    VerticalLayout {
+        alignment: center;
+        horizontal-stretch: 1;
+        Text {
+            text: root.label;
+            wrap: word-wrap;
+        }
+        if root.hint != "": Text {
+            text: root.hint;
+            font-size: 11px;
+            color: Theme.muted;
+            wrap: word-wrap;
+        }
+    }
+    @children
+}
+
+component MappingEditor inherits HorizontalLayout {
+    in property <MappingRow> mapping;
+    spacing: 8px;
+    height: 34px;
+
+    Text {
+        text: mapping.button;
+        width: 120px;
+        vertical-alignment: center;
+    }
+    ComboBox {
+        width: 200px;
+        model: AppState.action-names;
+        current-index: mapping.action-index;
+        selected => {
+            AppState.set-mapping(mapping.button, self.current-index, mapping.custom == "" ? mapping.button : mapping.custom);
+        }
+    }
+    if mapping.action-index == AppState.custom-action-index: LineEdit {
+        horizontal-stretch: 1;
+        text: mapping.custom;
+        placeholder-text: "Custom action name";
+        accepted(text) => {
+            AppState.set-mapping(mapping.button, AppState.custom-action-index, text);
+        }
+    }
+    if mapping.action-index != AppState.custom-action-index: Rectangle {
+        horizontal-stretch: 1;
+    }
+}
+
+component CapabilityItem inherits VerticalLayout {
+    in property <CapabilityRow> cap;
+    in property <bool> first-in-section;
+    spacing: 2px;
+
+    if root.first-in-section: Text {
+        text: cap.section;
+        font-weight: 600;
+    }
+    HorizontalLayout {
+        spacing: 8px;
+        Pill {
+            text: cap.status;
+            tint: Theme.level-color(cap.level);
+        }
+        Text {
+            text: cap.component;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+    }
+    // Full-width so the wrapped height is computed against the card width.
+    Text {
+        text: cap.detail;
+        font-size: 11px;
+        color: Theme.muted;
+        wrap: word-wrap;
+    }
+}
+
+export component SettingsPage inherits VerticalLayout {
+    property <bool> confirm-reset;
+    spacing: 14px;
+
+    PageHeader {
+        title: "Settings & Diagnostics";
+        subtitle: "Changes are saved immediately.";
+    }
+
+    sv := ScrollView {
+        vertical-stretch: 1;
+        // Sized from the fixed outer width rather than `visible-width`, which
+        // depends on the scrollbar and would feed back into wrapped text height.
+        content-width: sv.width - 16px;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            width: sv.width - 16px;
+            spacing: 12px;
+            padding-right: 14px;
+
+            Card {
+                title: "Input";
+                SettingRow {
+                    label: "Input mode";
+                    hint: AppState.native-available ? "" : "Native mode is unavailable: " + AppState.native-reason;
+                    ComboBox {
+                        width: 200px;
+                        enabled: AppState.native-available || AppState.input-mode == 1;
+                        model: ["Simulation", "Native"];
+                        current-index <=> AppState.input-mode;
+                        selected => {
+                            AppState.set-input-mode(self.current-index);
+                        }
+                    }
+                }
+                Text {
+                    text: "Device enablement is managed on the Input Devices page. Physical devices are never enabled automatically.";
+                    font-size: 11px;
+                    color: Theme.muted;
+                    wrap: word-wrap;
+                }
+            }
+
+            Card {
+                title: "Target selection";
+                SettingRow {
+                    label: "Preferred selection mode";
+                    ComboBox {
+                        width: 260px;
+                        model: ["Window", "Process"];
+                        current-index <=> AppState.selection-mode;
+                        selected => {
+                            AppState.set-selection-mode(self.current-index);
+                        }
+                    }
+                }
+                SettingRow {
+                    label: "Select automatically when only one eligible application is open";
+                    CheckBox {
+                        checked <=> AppState.auto-select-single;
+                        toggled => {
+                            AppState.set-auto-select-single(self.checked);
+                        }
+                    }
+                }
+                SettingRow {
+                    label: "When the target disappears";
+                    ComboBox {
+                        width: 260px;
+                        model: ["Rebind to an unambiguous match", "Always ask before rebinding"];
+                        current-index <=> AppState.target-lost-policy;
+                        selected => {
+                            AppState.set-target-lost-policy(self.current-index);
+                        }
+                    }
+                }
+                SettingRow {
+                    label: "When another eligible application appears";
+                    ComboBox {
+                        width: 260px;
+                        model: ["Keep the current target", "Ask which one to use"];
+                        current-index <=> AppState.multiple-policy;
+                        selected => {
+                            AppState.set-multiple-policy(self.current-index);
+                        }
+                    }
+                }
+                SettingRow {
+                    label: "Global change-target shortcut";
+                    hint: AppState.shortcut-status;
+                    shortcut-edit := LineEdit {
+                        width: 160px;
+                        text <=> AppState.shortcut;
+                        placeholder-text: "e.g. Ctrl+Alt+T";
+                        accepted(text) => {
+                            AppState.set-shortcut(text);
+                        }
+                    }
+                    Button {
+                        text: "Save";
+                        clicked => {
+                            AppState.set-shortcut(shortcut-edit.text);
+                        }
+                    }
+                }
+            }
+
+            Card {
+                title: "Input mappings";
+                Text {
+                    text: "Mappings apply to every device that reports a button, regardless of model. Unmapped buttons are rejected by the router.";
+                    font-size: 11px;
+                    color: Theme.muted;
+                    wrap: word-wrap;
+                }
+                for mapping in AppState.mappings: MappingEditor {
+                    mapping: mapping;
+                }
+            }
+
+            Card {
+                title: "Logging and configuration";
+                SettingRow {
+                    label: "Log verbosity";
+                    hint: "Applies to terminal output (RUST_LOG overrides it).";
+                    ComboBox {
+                        width: 160px;
+                        model: ["Error", "Warning", "Info", "Debug", "Trace"];
+                        current-index <=> AppState.log-level;
+                        selected => {
+                            AppState.set-log-level(self.current-index);
+                        }
+                    }
+                }
+                SettingRow {
+                    label: "Configuration file";
+                    hint: AppState.config-path;
+                    if !root.confirm-reset: Button {
+                        text: "Reset configuration…";
+                        clicked => {
+                            root.confirm-reset = true;
+                        }
+                    }
+                    if root.confirm-reset: Button {
+                        text: "Cancel";
+                        clicked => {
+                            root.confirm-reset = false;
+                        }
+                    }
+                    if root.confirm-reset: Button {
+                        text: "Reset to defaults";
+                        primary: true;
+                        clicked => {
+                            root.confirm-reset = false;
+                            AppState.reset-config();
+                        }
+                    }
+                }
+            }
+
+            Card {
+                title: "Diagnostics — " + AppState.environment;
+                Text {
+                    text: "Native features are listed with their real implementation status. Nothing marked “Not implemented” is used.";
+                    font-size: 11px;
+                    color: Theme.muted;
+                    wrap: word-wrap;
+                }
+                for cap[i] in AppState.capabilities: CapabilityItem {
+                    cap: cap;
+                    first-in-section: i == 0 || AppState.capabilities[i - 1].section != cap.section;
+                }
+            }
+
+            Card {
+                title: "About";
+                Text {
+                    text: "RustClick " + AppState.version + " · GPL-3.0-only · Routes presentation-remote input to a chosen application.";
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    AboutSlint {
+                        max-height: 160px;
+                    }
+                }
+            }
+        }
+    }
+}

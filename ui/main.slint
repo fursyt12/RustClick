@@ -1,0 +1,125 @@
+import { Palette } from "std-widgets.slint";
+import { AppState, CandidateRow, CapabilityRow, DeviceRow, LogRow, MappingRow, ProcessRow, WindowRow } from "state.slint";
+import { NavItem, Pill, StatusDot, Theme } from "components/widgets.slint";
+import { DashboardPage } from "dashboard.slint";
+import { DevicesPage } from "devices.slint";
+import { TargetsPage } from "targets.slint";
+import { SettingsPage } from "settings.slint";
+import { TargetPrompt } from "target_prompt.slint";
+
+export { AppState, CandidateRow, CapabilityRow, DeviceRow, LogRow, MappingRow, ProcessRow, WindowRow }
+
+export component AppWindow inherits Window {
+    title: "RustClick";
+    preferred-width: 1120px;
+    preferred-height: 760px;
+    min-width: 900px;
+    min-height: 600px;
+    background: Palette.background;
+
+    // Follows the system by default; tools such as the screenshots example
+    // can force a scheme.
+    in-out property <ColorScheme> color-scheme <=> Palette.color-scheme;
+
+    HorizontalLayout {
+        Rectangle {
+            width: 210px;
+            background: Palette.alternate-background;
+
+            VerticalLayout {
+                padding: 14px;
+                spacing: 4px;
+
+                Text {
+                    text: "RustClick";
+                    font-size: 20px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: "Presentation remote router";
+                    font-size: 11px;
+                    color: Theme.muted;
+                }
+                Rectangle {
+                    height: 14px;
+                }
+
+                NavItem {
+                    label: "Dashboard";
+                    active: AppState.page == 0;
+                    clicked => {
+                        AppState.page = 0;
+                    }
+                }
+                NavItem {
+                    label: "Input Devices";
+                    active: AppState.page == 1;
+                    clicked => {
+                        AppState.page = 1;
+                    }
+                }
+                NavItem {
+                    label: "Target Application";
+                    active: AppState.page == 2;
+                    clicked => {
+                        AppState.page = 2;
+                    }
+                }
+                NavItem {
+                    label: "Settings & Diagnostics";
+                    active: AppState.page == 3;
+                    clicked => {
+                        AppState.page = 3;
+                    }
+                }
+
+                Rectangle {
+                    vertical-stretch: 1;
+                }
+
+                HorizontalLayout {
+                    alignment: start;
+                    Pill {
+                        text: AppState.mode-label;
+                        tint: AppState.simulation ? Theme.info : Theme.warning;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    padding-top: 6px;
+                    VerticalLayout {
+                        alignment: center;
+                        StatusDot {
+                            tint: Theme.level-color(AppState.routing-level);
+                        }
+                    }
+                    Text {
+                        text: AppState.routing-label;
+                        wrap: word-wrap;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            width: 1px;
+            background: Palette.border;
+        }
+
+        VerticalLayout {
+            padding: 20px;
+            horizontal-stretch: 1;
+
+            if AppState.page == 0: DashboardPage { }
+            if AppState.page == 1: DevicesPage { }
+            if AppState.page == 2: TargetsPage { }
+            if AppState.page == 3: SettingsPage { }
+        }
+    }
+
+    if AppState.prompt-visible: TargetPrompt {
+        width: root.width;
+        height: root.height;
+    }
+}

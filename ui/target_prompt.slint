@@ -1,0 +1,115 @@
+import { Button, ListView, Palette } from "std-widgets.slint";
+import { AppState } from "state.slint";
+import { Theme } from "components/widgets.slint";
+
+// Modal overlay shown while the target is ambiguous. Routing stays paused
+// until one of the candidates is chosen or the dialog is dismissed.
+export component TargetPrompt inherits Rectangle {
+    background: #00000080;
+
+    // Swallow clicks so the page underneath is not operated.
+    TouchArea { }
+
+    dialog := Rectangle {
+        width: min(560px, root.width - 32px);
+        height: layout.preferred-height;
+        x: (root.width - self.width) / 2;
+        y: max(16px, (root.height - self.height) / 2);
+        background: Palette.background;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: Palette.border;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #00000060;
+
+        layout := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            Text {
+                text: "Choose the target application";
+                font-size: 18px;
+                font-weight: 700;
+            }
+            Text {
+                text: AppState.prompt-reason;
+                wrap: word-wrap;
+            }
+            Text {
+                text: "Routing is paused until you choose. The choice is remembered for this session.";
+                color: Theme.muted;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+
+            ListView {
+                height: min(AppState.candidates.length * 60px, 300px);
+                for candidate in AppState.candidates: Rectangle {
+                    height: 60px;
+                    border-radius: 6px;
+                    background: touch.has-hover ? Palette.foreground.transparentize(0.94) : transparent;
+
+                    touch := TouchArea {
+                        clicked => {
+                            AppState.confirm-candidate(candidate.key);
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding: 8px;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: candidate.app-name;
+                                font-weight: 600;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: candidate.title + " · PID " + candidate.pid;
+                                color: Theme.muted;
+                                font-size: 12px;
+                                overflow: elide;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            Button {
+                                text: "Select";
+                                primary: true;
+                                clicked => {
+                                    AppState.confirm-candidate(candidate.key);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+                Button {
+                    text: "Choose another window…";
+                    clicked => {
+                        AppState.dismiss-prompt(false, false);
+                        AppState.page = 2;
+                    }
+                }
+                Button {
+                    text: "Pause routing";
+                    clicked => {
+                        AppState.dismiss-prompt(false, true);
+                    }
+                }
+                Button {
+                    text: "Cancel";
+                    clicked => {
+                        AppState.dismiss-prompt(true, false);
+                    }
+                }
+            }
+        }
+    }
+}

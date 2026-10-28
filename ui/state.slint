@@ -1,0 +1,169 @@
+// The single interface between the Slint UI and the Rust controller.
+// The controller writes the `in` properties from the service's view model;
+// callbacks turn user actions into service commands. No routing rules live here.
+
+export struct DeviceRow {
+    id: string,
+    name: string,
+    simulated: bool,
+    connected: bool,
+    enabled: bool,
+    last-activity: string,
+    details: string,
+    buttons: [string],
+}
+
+export struct ProcessRow {
+    key: string,
+    app-name: string,
+    process-name: string,
+    executable: string,
+    pid: int,
+    window-count: int,
+    eligible: bool,
+    selected: bool,
+}
+
+export struct WindowRow {
+    key: string,
+    process-key: string,
+    app-name: string,
+    title: string,
+    pid: int,
+    window-id: string,
+    available: bool,
+    eligible: bool,
+    selected: bool,
+    received: string,
+}
+
+export struct LogRow {
+    time: string,
+    category: string,
+    severity: int,
+    device: string,
+    button: string,
+    message: string,
+}
+
+export struct CandidateRow {
+    key: string,
+    app-name: string,
+    title: string,
+    pid: int,
+}
+
+export struct MappingRow {
+    button: string,
+    action-index: int,
+    custom: string,
+}
+
+export struct CapabilityRow {
+    section: string,
+    component: string,
+    status: string,
+    level: int,
+    detail: string,
+}
+
+export global AppState {
+    // Navigation (UI-only state).
+    in-out property <int> page: 0;
+    in-out property <int> selected-device: 0;
+
+    // Dashboard
+    in property <bool> simulation: true;
+    in property <string> mode-label;
+    in property <string> status-text;
+    in property <int> status-level;
+    in property <string> routing-label;
+    in property <int> routing-level;
+    in property <bool> routing-requested;
+    in property <bool> can-start;
+    in property <string> start-blocked-reason;
+    in property <string> target-summary;
+    in property <string> target-detail;
+    in property <int> target-level;
+    in property <string> devices-summary;
+    in property <string> last-event;
+    in property <string> last-result;
+    in property <int> last-result-level;
+    in property <[string]> warnings;
+
+    // Devices
+    in property <[DeviceRow]> devices;
+    in property <[LogRow]> log;
+    in-out property <int> log-filter;
+
+    // Targets
+    in property <[ProcessRow]> processes;
+    in property <[WindowRow]> windows;
+    in property <string> targets-error;
+    in property <bool> notifications-active;
+    in-out property <bool> mock-notifications;
+
+    // Target confirmation dialog
+    in property <bool> prompt-visible;
+    in property <string> prompt-reason;
+    in property <[CandidateRow]> candidates;
+
+    // Settings and diagnostics
+    in-out property <int> input-mode;
+    in property <bool> native-available;
+    in property <string> native-reason;
+    in-out property <int> selection-mode;
+    in-out property <bool> auto-select-single;
+    in-out property <int> target-lost-policy;
+    in-out property <int> multiple-policy;
+    in-out property <string> shortcut;
+    in property <string> shortcut-status;
+    in-out property <int> log-level;
+    in property <[MappingRow]> mappings;
+    in property <[string]> action-names;
+    in property <int> custom-action-index;
+    in property <[CapabilityRow]> capabilities;
+    in property <string> config-path;
+    in property <string> environment;
+    in property <string> version;
+
+    callback start-routing();
+    callback stop-routing();
+    callback request-target-change();
+    callback clear-target();
+
+    callback add-mock-device(int);
+    callback remove-device(string);
+    callback rename-device(string, string);
+    callback set-device-enabled(string, bool);
+    callback set-device-connected(string, bool);
+    // device id, button, kind (0 click, 1 press, 2 release)
+    callback emit-event(string, string, int);
+    callback replay-last-event(string);
+    callback set-log-filter(int);
+    callback clear-log();
+
+    callback refresh-targets();
+    callback select-window(string);
+    callback select-process(string);
+    callback set-selection-mode(int);
+    callback confirm-candidate(string);
+    // restore previous target, stop routing
+    callback dismiss-prompt(bool, bool);
+    callback mock-launch(int);
+    callback mock-open-window(string);
+    callback mock-close-window(string);
+    callback mock-kill-process(string);
+    callback mock-restart-process(string);
+    callback set-mock-notifications(bool);
+
+    callback set-input-mode(int);
+    callback set-auto-select-single(bool);
+    callback set-target-lost-policy(int);
+    callback set-multiple-policy(int);
+    callback set-shortcut(string);
+    callback set-log-level(int);
+    // button, action index, custom action name
+    callback set-mapping(string, int, string);
+    callback reset-config();
+}

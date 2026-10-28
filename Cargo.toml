@@ -1,0 +1,34 @@
+[package]
+name = "rustclick"
+version = "0.1.0"
+edition = "2024"
+# Slint 1.18 requires Rust 1.92.
+rust-version = "1.92"
+description = "Routes presentation-remote input to a chosen application without requiring focus"
+license = "GPL-3.0-only"
+readme = "README.md"
+publish = false
+
+[dependencies]
+anyhow = "1.0.104"
+chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
+directories = "6.0.0"
+serde = { version = "1.0.229", features = ["derive"] }
+# slint, slint-build and i-slint-backend-testing must stay on the same version.
+slint = "=1.18.1"
+thiserror = "2.0.21"
+toml = "1.1.8"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+[dev-dependencies]
+i-slint-backend-testing = "=1.18.1"
+png = "0.18"
+tempfile = "3.27.0"
+
+[profile.release]
+lto = "thin"
+strip = true
