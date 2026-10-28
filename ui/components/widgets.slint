@@ -7,8 +7,9 @@ export global Theme {
     out property <color> warning: #c7861a;
     out property <color> error: #d64545;
     out property <color> info: #3b82c4;
-    out property <color> muted: Palette.foreground.transparentize(0.4);
-    out property <color> card: Palette.alternate-background;
+    out property <color> muted: Palette.foreground.transparentize(0.45);
+    out property <color> hover: Palette.foreground.transparentize(0.94);
+    out property <color> selected: Palette.accent-background.transparentize(0.86);
     out property <length> radius: 8px;
 
     // Severity levels as sent by the controller: 0 info, 1 success, 2 warning, 3 error.
@@ -29,34 +30,31 @@ export global Theme {
     }
 }
 
-export component Card inherits Rectangle {
+// A titled group of content without a frame.
+export component Section inherits VerticalLayout {
     in property <string> title;
-    in property <length> content-spacing: 8px;
-    in property <LayoutAlignment> content-alignment: stretch;
-    background: Theme.card;
-    border-radius: Theme.radius;
-    border-width: 1px;
-    border-color: Palette.border;
+    spacing: 6px;
 
-    VerticalLayout {
-        padding: 14px;
-        spacing: root.content-spacing;
-        alignment: root.content-alignment;
-        if root.title != "": Text {
-            text: root.title;
-            font-size: 13px;
-            font-weight: 600;
-            color: Theme.muted;
-        }
-        @children
+    if root.title != "": Text {
+        text: root.title;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        color: Theme.muted;
     }
+    @children
+}
+
+export component Divider inherits Rectangle {
+    height: 1px;
+    background: Palette.border;
 }
 
 export component StatusDot inherits Rectangle {
     in property <color> tint: Theme.info;
-    width: 10px;
-    height: 10px;
-    border-radius: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
     background: tint;
 }
 
@@ -65,7 +63,7 @@ export component Pill inherits Rectangle {
     in property <color> tint: Theme.info;
     height: 20px;
     border-radius: 10px;
-    background: tint.transparentize(0.82);
+    background: tint.transparentize(0.84);
     min-width: label.preferred-width + 16px;
     preferred-width: self.min-width;
     horizontal-stretch: 0;
@@ -84,96 +82,102 @@ export component Pill inherits Rectangle {
     }
 }
 
-export component PageHeader inherits HorizontalLayout {
-    in property <string> title;
-    in property <string> subtitle;
-    spacing: 12px;
+// A text-only button for toolbars.
+export component FlatButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback clicked();
+    height: 32px;
+    min-width: label.preferred-width + 20px;
+    preferred-width: self.min-width;
+    horizontal-stretch: 0;
+    border-radius: 6px;
+    background: !root.enabled ? transparent : touch.pressed ? Palette.foreground.transparentize(0.88) : touch.has-hover ? Theme.hover : transparent;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => {
+        root.clicked();
+    }
 
-    VerticalLayout {
-        alignment: center;
-        horizontal-stretch: 1;
-        Text {
-            text: root.title;
-            font-size: 22px;
-            font-weight: 700;
-        }
-        if root.subtitle != "": Text {
-            text: root.subtitle;
-            color: Theme.muted;
-            wrap: word-wrap;
+    label := Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.text;
+        color: root.enabled ? Palette.foreground : Theme.muted;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
         }
     }
-    @children
 }
 
-// A labelled value on the dashboard.
-export component Field inherits VerticalLayout {
-    in property <string> label;
-    in property <string> value;
-    in property <color> value-color: Palette.foreground;
-    spacing: 2px;
+// The one prominent action of a page.
+export component BigButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    // Secondary style (e.g. "Stop" while running).
+    in property <bool> secondary;
+    callback clicked();
+    width: 220px;
+    height: 46px;
+    border-radius: 23px;
+    border-width: root.secondary && root.enabled ? 1px : 0px;
+    border-color: Palette.border;
+    background: !root.enabled ? Palette.foreground.transparentize(0.92)
+        : root.secondary ? (touch.has-hover ? Theme.hover : transparent)
+        : touch.pressed ? Palette.accent-background.darker(0.2)
+        : touch.has-hover ? Palette.accent-background.darker(0.1)
+        : Palette.accent-background;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        root.clicked();
+    }
 
     Text {
-        text: root.label;
-        font-size: 11px;
-        color: Theme.muted;
+        width: parent.width;
+        height: parent.height;
+        text: root.text;
+        font-size: 15px;
+        font-weight: 600;
+        color: !root.enabled ? Theme.muted : root.secondary ? Palette.foreground : Palette.accent-foreground;
+        horizontal-alignment: center;
+        vertical-alignment: center;
     }
-    Text {
-        text: root.value;
-        color: root.value-color;
-        wrap: word-wrap;
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
     }
 }
 
 export component Banner inherits Rectangle {
     in property <string> text;
     in property <color> tint: Theme.info;
-    background: tint.transparentize(0.86);
+    background: tint.transparentize(0.88);
     border-radius: 6px;
-    border-width: 1px;
-    border-color: tint.transparentize(0.5);
 
     HorizontalLayout {
         padding: 10px;
         spacing: 10px;
         Rectangle {
-            width: 4px;
-            border-radius: 2px;
+            width: 3px;
+            border-radius: 1.5px;
             background: root.tint;
         }
         Text {
             text: root.text;
+            font-size: 12px;
             wrap: word-wrap;
             vertical-alignment: center;
-        }
-    }
-}
-
-export component NavItem inherits Rectangle {
-    in property <string> label;
-    in property <bool> active;
-    callback clicked();
-    height: 36px;
-    border-radius: 6px;
-    background: active ? Palette.accent-background.transparentize(0.82) : touch.has-hover ? Palette.foreground.transparentize(0.94) : transparent;
-    accessible-role: button;
-    accessible-label: label;
-
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        Text {
-            text: root.label;
-            vertical-alignment: center;
-            font-weight: root.active ? 600 : 400;
-            color: root.active ? Palette.accent-background : Palette.foreground;
-            overflow: elide;
-        }
-    }
-
-    touch := TouchArea {
-        clicked => {
-            root.clicked();
         }
     }
 }

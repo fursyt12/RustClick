@@ -2,7 +2,8 @@
 //!
 //! These functions only describe what the native adapters can do on the
 //! current operating system. They never open devices or change system state.
-//! Each OS module documents the APIs a future adapter is expected to use.
+//! Each OS module documents the APIs its adapter uses or is expected to use.
+//! The Windows module also contains the adapter itself.
 
 use crate::core::capabilities::Capability;
 
@@ -12,7 +13,7 @@ mod linux;
 use linux as imp;
 
 #[cfg(target_os = "windows")]
-mod windows;
+pub mod windows;
 #[cfg(target_os = "windows")]
 use windows as imp;
 

@@ -17,10 +17,11 @@
 │ core/            │   │ input/                  │   │ targets/                │
 │ devices, input,  │   │ InputProvider trait     │   │ TargetProvider trait    │
 │ mappings,        │   │  mock.rs   (working)    │   │  mock.rs   (working)    │
-│ targets, routing │   │  native.rs (reports     │   │  native.rs (reports     │
-│ config,          │   │   "not implemented")    │   │   "not implemented")    │
-│ capabilities     │   └─────────────────────────┘   └─────────────────────────┘
-│ (no OS, no GUI)  │   platform/{linux,windows,macos}.rs: capability reports
+│ targets, routing │   │  native.rs (Windows:    │   │  native.rs (Windows:    │
+│ config,          │   │   Raw Input; else       │   │   EnumWindows; else     │
+│ capabilities     │   │   "not implemented")    │   │   "not implemented")    │
+│                  │   └─────────────────────────┘   └─────────────────────────┘
+│ (no OS, no GUI)  │   platform/: capability reports; platform/windows/: adapter
 └──────────────────┘   storage.rs: config file I/O · logging.rs: tracing setup
 ```
 

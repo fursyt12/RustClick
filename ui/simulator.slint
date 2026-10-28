@@ -1,0 +1,282 @@
+import { Button, CheckBox, ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
+import { AppState, DeviceRow, ProcessRow, WindowRow } from "state.slint";
+import { Divider, Section, StatusDot, Theme } from "components/widgets.slint";
+
+component DeviceTab inherits Rectangle {
+    in property <DeviceRow> device;
+    in property <bool> selected;
+    callback clicked();
+    height: 30px;
+    min-width: label.preferred-width + 34px;
+    horizontal-stretch: 0;
+    border-radius: 15px;
+    background: selected ? Theme.selected : touch.has-hover ? Theme.hover : transparent;
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 6px;
+        VerticalLayout {
+            alignment: center;
+            StatusDot {
+                tint: !device.connected ? Theme.error : device.enabled ? Theme.success : Theme.muted;
+            }
+        }
+        label := Text {
+            text: device.name;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component DeviceTester inherits VerticalLayout {
+    in property <DeviceRow> device;
+    spacing: 8px;
+
+    Text {
+        text: device.details + " · " + device.id;
+        font-size: 11px;
+        color: Theme.muted;
+        wrap: word-wrap;
+    }
+    HorizontalLayout {
+        spacing: 6px;
+        name-edit := LineEdit {
+            placeholder-text: "New name";
+            horizontal-stretch: 1;
+            accepted(text) => {
+                AppState.rename-device(device.id, text);
+                self.text = "";
+            }
+        }
+        Button {
+            text: "Rename";
+            enabled: name-edit.text != "";
+            clicked => {
+                AppState.rename-device(device.id, name-edit.text);
+                name-edit.text = "";
+            }
+        }
+        Button {
+            text: device.connected ? "Disconnect" : "Reconnect";
+            clicked => {
+                AppState.set-device-connected(device.id, !device.connected);
+            }
+        }
+        Button {
+            text: "Remove";
+            clicked => {
+                AppState.remove-device(device.id);
+            }
+        }
+    }
+    for button in device.buttons: HorizontalLayout {
+        spacing: 6px;
+        Text {
+            text: button;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+        Button {
+            text: "Click";
+            enabled: device.connected;
+            clicked => {
+                AppState.emit-event(device.id, button, 0);
+            }
+        }
+        Button {
+            text: "Press";
+            enabled: device.connected;
+            clicked => {
+                AppState.emit-event(device.id, button, 1);
+            }
+        }
+        Button {
+            text: "Release";
+            enabled: device.connected;
+            clicked => {
+                AppState.emit-event(device.id, button, 2);
+            }
+        }
+    }
+    HorizontalLayout {
+        alignment: start;
+        Button {
+            text: "Resend last event (duplicate)";
+            enabled: device.connected;
+            clicked => {
+                AppState.replay-last-event(device.id);
+            }
+        }
+    }
+}
+
+component ProcessItem inherits HorizontalLayout {
+    in property <ProcessRow> process;
+    spacing: 6px;
+
+    VerticalLayout {
+        alignment: center;
+        horizontal-stretch: 1;
+        Text {
+            text: process.app-name;
+            font-weight: 600;
+            overflow: elide;
+        }
+        Text {
+            text: "PID " + process.pid + " · " + process.window-count + (process.window-count == 1 ? " window" : " windows");
+            font-size: 11px;
+            color: Theme.muted;
+        }
+    }
+    Button {
+        text: "New window";
+        clicked => {
+            AppState.mock-open-window(process.key);
+        }
+    }
+    Button {
+        text: "Restart";
+        clicked => {
+            AppState.mock-restart-process(process.key);
+        }
+    }
+    Button {
+        text: "Quit";
+        clicked => {
+            AppState.mock-kill-process(process.key);
+        }
+    }
+}
+
+component WindowItem inherits HorizontalLayout {
+    in property <WindowRow> window;
+    spacing: 6px;
+
+    VerticalLayout {
+        alignment: center;
+        horizontal-stretch: 1;
+        Text {
+            text: window.title;
+            overflow: elide;
+            font-weight: window.selected ? 600 : 400;
+        }
+        Text {
+            text: window.received == "" ? "PID " + window.pid : "PID " + window.pid + " · " + window.received;
+            font-size: 11px;
+            color: Theme.muted;
+            overflow: elide;
+        }
+    }
+    Button {
+        text: "Close";
+        clicked => {
+            AppState.mock-close-window(window.key);
+        }
+    }
+}
+
+// Mock remotes and mock applications for testing without hardware.
+export component SimulatorPage inherits VerticalLayout {
+    property <bool> has-device: AppState.selected-device >= 0 && AppState.selected-device < AppState.devices.length;
+
+    sv := ScrollView {
+        vertical-stretch: 1;
+        content-width: sv.width - 16px;
+        content-height: content.preferred-height;
+
+        content := VerticalLayout {
+            width: sv.width - 16px;
+            padding: 20px;
+            padding-top: 4px;
+            spacing: 18px;
+
+            Section {
+                title: "MOCK REMOTES";
+                HorizontalLayout {
+                    spacing: 6px;
+                    profile := ComboBox {
+                        horizontal-stretch: 1;
+                        model: ["Two-button clicker", "Clicker with hold actions", "Pointer remote"];
+                        current-index: 2;
+                    }
+                    Button {
+                        text: "Add";
+                        clicked => {
+                            AppState.add-mock-device(profile.current-index);
+                            AppState.selected-device = AppState.devices.length;
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: start;
+                    for device[i] in AppState.devices: DeviceTab {
+                        device: device;
+                        selected: i == AppState.selected-device;
+                        clicked => {
+                            AppState.selected-device = i;
+                        }
+                    }
+                }
+                if root.has-device: DeviceTester {
+                    device: AppState.devices[AppState.selected-device];
+                }
+            }
+
+            Divider { }
+
+            Section {
+                title: "MOCK APPLICATIONS";
+                HorizontalLayout {
+                    spacing: 6px;
+                    Button {
+                        text: "PowerPoint";
+                        clicked => {
+                            AppState.mock-launch(0);
+                        }
+                    }
+                    Button {
+                        text: "Acrobat";
+                        clicked => {
+                            AppState.mock-launch(1);
+                        }
+                    }
+                    Button {
+                        text: "Text editor";
+                        clicked => {
+                            AppState.mock-launch(2);
+                        }
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                    }
+                }
+                CheckBox {
+                    text: "Lifecycle notifications";
+                    checked <=> AppState.mock-notifications;
+                    toggled => {
+                        AppState.set-mock-notifications(self.checked);
+                    }
+                }
+                for process in AppState.processes: ProcessItem {
+                    process: process;
+                }
+            }
+
+            Section {
+                title: "MOCK WINDOWS";
+                for window in AppState.windows: WindowItem {
+                    window: window;
+                }
+            }
+        }
+    }
+}

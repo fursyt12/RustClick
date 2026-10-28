@@ -1,0 +1,126 @@
+import { Button, ListView } from "std-widgets.slint";
+import { AppState, WindowRow } from "state.slint";
+import { Banner, Pill, Theme } from "components/widgets.slint";
+
+component WindowItem inherits Rectangle {
+    in property <WindowRow> window;
+    callback chosen();
+    height: 50px;
+    border-radius: 6px;
+    background: window.selected ? Theme.selected : touch.has-hover && window.available ? Theme.hover : transparent;
+    accessible-role: button;
+    accessible-label: window.title;
+    accessible-action-default => {
+        root.chosen();
+    }
+
+    touch := TouchArea {
+        enabled: window.available;
+        clicked => {
+            root.chosen();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 8px;
+        VerticalLayout {
+            alignment: center;
+            spacing: 1px;
+            horizontal-stretch: 1;
+            Text {
+                text: window.title;
+                font-weight: 600;
+                overflow: elide;
+                color: window.available ? Theme.text-color(0) : Theme.muted;
+            }
+            Text {
+                text: window.app-name + " · PID " + window.pid;
+                font-size: 11px;
+                color: Theme.muted;
+                overflow: elide;
+            }
+        }
+        if window.selected: VerticalLayout {
+            alignment: center;
+            Pill {
+                text: "Target";
+                tint: Theme.info;
+            }
+        }
+        if !window.selected && window.eligible: VerticalLayout {
+            alignment: center;
+            Pill {
+                text: "Presentation app";
+                tint: Theme.success;
+            }
+        }
+    }
+}
+
+// Choose the window that receives routed actions.
+export component PickerPage inherits VerticalLayout {
+    padding: 20px;
+    padding-top: 4px;
+    spacing: 10px;
+
+    HorizontalLayout {
+        spacing: 8px;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: AppState.target-summary;
+                font-weight: 600;
+                color: Theme.text-color(AppState.target-level);
+                wrap: word-wrap;
+            }
+            Text {
+                text: AppState.notifications-active ? "The list updates automatically." : "Use Refresh to update the list.";
+                font-size: 11px;
+                color: Theme.muted;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Button {
+                text: "Refresh";
+                clicked => {
+                    AppState.refresh-targets();
+                }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Button {
+                text: "Clear";
+                enabled: AppState.target-level != 0;
+                clicked => {
+                    AppState.clear-target();
+                }
+            }
+        }
+    }
+
+    if AppState.targets-error != "": Banner {
+        text: AppState.targets-error;
+        tint: Theme.error;
+    }
+
+    if AppState.windows.length == 0 && AppState.targets-error == "": Text {
+        text: "No windows found.";
+        color: Theme.muted;
+    }
+
+    ListView {
+        vertical-stretch: 1;
+        for window in AppState.windows: WindowItem {
+            window: window;
+            chosen => {
+                AppState.select-window(window.key);
+                AppState.page = 0;
+            }
+        }
+    }
+}

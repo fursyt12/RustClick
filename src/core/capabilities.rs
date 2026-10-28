@@ -9,6 +9,8 @@ pub enum CapabilityStatus {
     Unsupported,
     PermissionRequired,
     NotImplemented,
+    /// Implemented, but not yet verified on real hardware and applications.
+    Experimental,
     TemporarilyUnavailable,
     Error,
 }
@@ -20,13 +22,15 @@ impl CapabilityStatus {
             Self::Unsupported => "Unsupported",
             Self::PermissionRequired => "Permission required",
             Self::NotImplemented => "Not implemented",
+            Self::Experimental => "Experimental",
             Self::TemporarilyUnavailable => "Temporarily unavailable",
             Self::Error => "Error",
         }
     }
 
+    /// Whether the capability can be used (experimental ones included).
     pub fn is_operational(self) -> bool {
-        self == Self::Supported
+        matches!(self, Self::Supported | Self::Experimental)
     }
 }
 
@@ -42,6 +46,8 @@ pub struct Capability {
     pub component: String,
     pub status: CapabilityStatus,
     pub detail: String,
+    /// Native mode can be used without this capability (e.g. suppression).
+    pub optional: bool,
 }
 
 impl Capability {
@@ -54,6 +60,13 @@ impl Capability {
             component: component.into(),
             status,
             detail: detail.into(),
+            optional: false,
         }
+    }
+
+    /// Marks the capability as not required for native mode.
+    pub fn optional(mut self) -> Self {
+        self.optional = true;
+        self
     }
 }

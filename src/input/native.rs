@@ -1,53 +1,68 @@
 //! Native input provider.
 //!
-//! Not implemented yet on any platform. It reports its status explicitly
-//! through [`crate::platform`] and refuses to start, so the rest of the
-//! application can never mistake it for a working input source.
+//! On Windows this is the Raw Input adapter in
+//! [`crate::platform::windows::input`]. Elsewhere it is not implemented yet:
+//! it reports its status explicitly through [`crate::platform`] and refuses
+//! to start, so the rest of the application can never mistake it for a
+//! working input source.
 
-use crate::core::capabilities::Capability;
-use crate::core::devices::DeviceInfo;
-use crate::core::input::DeviceId;
-use crate::platform;
-use crate::provider::{ProviderError, ProviderSink};
+#[cfg(target_os = "windows")]
+pub use crate::platform::windows::input::NativeInputProvider;
 
-use super::InputProvider;
+#[cfg(not(target_os = "windows"))]
+pub use stub::NativeInputProvider;
 
-#[derive(Debug, Default)]
-pub struct NativeInputProvider;
+#[cfg(not(target_os = "windows"))]
+mod stub {
+    use crate::core::capabilities::Capability;
+    use crate::core::devices::DeviceInfo;
+    use crate::core::input::DeviceId;
+    use crate::platform;
+    use crate::provider::{ProviderError, ProviderSink};
 
-impl NativeInputProvider {
-    fn unsupported() -> ProviderError {
-        ProviderError::Unsupported(format!(
-            "Native input capture is not implemented on {}",
-            platform::os_label()
-        ))
-    }
-}
+    use crate::input::InputProvider;
 
-impl InputProvider for NativeInputProvider {
-    fn name(&self) -> &'static str {
-        "native input"
-    }
+    #[derive(Debug, Default)]
+    pub struct NativeInputProvider {}
 
-    fn capabilities(&self) -> Vec<Capability> {
-        platform::input_capabilities()
-    }
-
-    fn start(&mut self, _sink: ProviderSink) -> Result<(), ProviderError> {
-        Err(Self::unsupported())
+    impl NativeInputProvider {
+        fn unsupported() -> ProviderError {
+            ProviderError::Unsupported(format!(
+                "Native input capture is not implemented on {}",
+                platform::os_label()
+            ))
+        }
     }
 
-    fn stop(&mut self) {}
+    impl InputProvider for NativeInputProvider {
+        fn name(&self) -> &'static str {
+            "native input"
+        }
 
-    fn is_running(&self) -> bool {
-        false
-    }
+        fn capabilities(&self) -> Vec<Capability> {
+            platform::input_capabilities()
+        }
 
-    fn devices(&self) -> Vec<DeviceInfo> {
-        Vec::new()
-    }
+        fn start(&mut self, _sink: ProviderSink) -> Result<(), ProviderError> {
+            Err(Self::unsupported())
+        }
 
-    fn set_device_enabled(&mut self, _id: &DeviceId, _enabled: bool) -> Result<(), ProviderError> {
-        Err(Self::unsupported())
+        fn stop(&mut self) {}
+
+        fn is_running(&self) -> bool {
+            false
+        }
+
+        fn devices(&self) -> Vec<DeviceInfo> {
+            Vec::new()
+        }
+
+        fn set_device_enabled(
+            &mut self,
+            _id: &DeviceId,
+            _enabled: bool,
+        ) -> Result<(), ProviderError> {
+            Err(Self::unsupported())
+        }
     }
 }

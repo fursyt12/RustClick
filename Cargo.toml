@@ -1,6 +1,6 @@
 [package]
 name = "rustclick"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 # Slint 1.18 requires Rust 1.92.
 rust-version = "1.92"
@@ -20,6 +20,23 @@ thiserror = "2.0.21"
 toml = "1.1.8"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+
+[target.'cfg(windows)'.dependencies]
+# HID enumeration and Logitech HID++ access. The default C backend is used on
+# Windows; the Linux/illumos backends are not needed.
+hidapi = { version = "2.6.7", default-features = false }
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_UI_Input",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 [build-dependencies]
 slint-build = "=1.18.1"

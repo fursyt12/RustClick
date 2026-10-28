@@ -11,7 +11,7 @@ use slint::ComponentHandle;
 
 fn main() -> anyhow::Result<()> {
     let store = ConfigStore::default_location();
-    let (config, warnings) = match &store {
+    let (config, mut warnings) = match &store {
         Some(store) => {
             let loaded = store.load();
             (loaded.config, loaded.warnings)
@@ -25,14 +25,24 @@ fn main() -> anyhow::Result<()> {
         ),
     };
 
-    let log = logging::init(config.logging.level);
+    let log = logging::init(config.logging.level, ConfigStore::log_file().as_deref());
+    let log_file = match log.file() {
+        Ok(path) => path.map(|p| p.display().to_string()),
+        Err(e) => {
+            warnings.push(e.to_owned());
+            None
+        }
+    };
     tracing::info!(
+        version = %rustclick::version(),
+        os = %rustclick::platform::environment(),
         config = ?store.as_ref().map(|s| s.path().to_owned()),
         mode = config.input_mode.label(),
         "starting RustClick"
     );
 
     let mut service = AppService::new(config, store, warnings);
+    service.set_log_file(log_file);
     service.set_log_level_hook(Box::new(move |level| log.set_level(level)));
     let sender = service.sender();
 

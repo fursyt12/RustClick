@@ -1,9 +1,15 @@
 # Native integration: plan and limitations
 
-Nothing in this document is implemented yet. The native providers
-(`src/input/native.rs`, `src/targets/native.rs`) refuse to start and report
-their status through `src/platform/*.rs`, which is what *Settings &
-Diagnostics* shows. This document records what each platform offers, what it
+On **Windows**, a first adapter exists in `src/platform/windows/` and is
+marked *Experimental*: Raw Input capture of Logitech devices, window
+discovery with `EnumWindows` and polling, and delivery through posted key
+messages. Input suppression is not implemented. `rustclick-diag.exe`
+(`src/bin/rustclick-diag.rs`) records what the hardware and applications
+actually do; see [windows-testing.md](windows-testing.md). On Linux and
+macOS, nothing in this document is implemented yet: the native providers
+(`src/input/native.rs`, `src/targets/native.rs`) refuse to start. Every
+platform reports its status through `src/platform/`, which is what
+*Settings → Diagnostics* shows. This document records what each platform offers, what it
 does not, and what must be verified on real hardware before RustClick may
 claim support.
 
@@ -76,6 +82,16 @@ protocol? (Vendor protocols are out of scope for the MVP.)
 | Global shortcut | `RegisterHotKey` | |
 
 Elevation: none for the above, except delivering to elevated target processes.
+
+**Suppression through HID++.** Logitech remotes expose the vendor protocol
+HID++ 2.0 on a separate HID collection (usage page `0xFF00`/usage 2 behind a
+receiver, `0xFF43`/`0x0202` over Bluetooth LE). Its `REPROG_CONTROLS_V4`
+feature (`0x1B04`) can *divert* a button: the remote then stops sending the
+keystroke and reports the press as a HID++ notification. This solves
+identification and suppression together, without hooks or drivers, for
+remotes that support it. `rustclick-diag` lists each remote's controls, tries
+diversion temporarily and records the notifications, so the input provider
+can rely on measured control ids instead of assumptions.
 
 ## macOS
 

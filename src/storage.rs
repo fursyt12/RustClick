@@ -44,6 +44,18 @@ impl ConfigStore {
         &self.path
     }
 
+    /// The log file: next to the configuration when `RUSTCLICK_CONFIG_DIR`
+    /// is set, otherwise in the per-user data directory
+    /// (`%LOCALAPPDATA%\RustClick\data` on Windows, `~/.local/share/rustclick`
+    /// on Linux).
+    pub fn log_file() -> Option<PathBuf> {
+        if let Some(dir) = std::env::var_os(CONFIG_DIR_ENV) {
+            return Some(PathBuf::from(dir).join("rustclick.log"));
+        }
+        directories::ProjectDirs::from("", "", "RustClick")
+            .map(|d| d.data_local_dir().join("rustclick.log"))
+    }
+
     /// Loads the configuration. A missing file yields defaults; an invalid
     /// or unsupported file is moved aside and defaults are used.
     pub fn load(&self) -> Loaded {

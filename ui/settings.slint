@@ -1,11 +1,12 @@
 import { AboutSlint, Button, CheckBox, ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
 import { AppState, CapabilityRow, MappingRow } from "state.slint";
-import { Card, PageHeader, Pill, Theme } from "components/widgets.slint";
+import { Divider, Pill, Section, Theme } from "components/widgets.slint";
 
 component SettingRow inherits HorizontalLayout {
     in property <string> label;
     in property <string> hint;
     spacing: 12px;
+    min-height: 32px;
 
     VerticalLayout {
         alignment: center;
@@ -31,11 +32,12 @@ component MappingEditor inherits HorizontalLayout {
 
     Text {
         text: mapping.button;
-        width: 120px;
+        width: 110px;
         vertical-alignment: center;
+        overflow: elide;
     }
     ComboBox {
-        width: 200px;
+        width: 190px;
         model: AppState.action-names;
         current-index: mapping.action-index;
         selected => {
@@ -77,7 +79,7 @@ component CapabilityItem inherits VerticalLayout {
             overflow: elide;
         }
     }
-    // Full-width so the wrapped height is computed against the card width.
+    // Full-width so the wrapped height is computed against the page width.
     Text {
         text: cap.detail;
         font-size: 11px;
@@ -88,12 +90,6 @@ component CapabilityItem inherits VerticalLayout {
 
 export component SettingsPage inherits VerticalLayout {
     property <bool> confirm-reset;
-    spacing: 14px;
-
-    PageHeader {
-        title: "Settings & Diagnostics";
-        subtitle: "Changes are saved immediately.";
-    }
 
     sv := ScrollView {
         vertical-stretch: 1;
@@ -104,16 +100,17 @@ export component SettingsPage inherits VerticalLayout {
 
         content := VerticalLayout {
             width: sv.width - 16px;
-            spacing: 12px;
-            padding-right: 14px;
+            padding: 20px;
+            padding-top: 4px;
+            spacing: 18px;
 
-            Card {
-                title: "Input";
+            Section {
+                title: "INPUT";
                 SettingRow {
                     label: "Input mode";
-                    hint: AppState.native-available ? "" : "Native mode is unavailable: " + AppState.native-reason;
+                    hint: AppState.native-available ? "Native mode uses your real remotes and windows." : "Native mode is unavailable: " + AppState.native-reason;
                     ComboBox {
-                        width: 200px;
+                        width: 170px;
                         enabled: AppState.native-available || AppState.input-mode == 1;
                         model: ["Simulation", "Native"];
                         current-index <=> AppState.input-mode;
@@ -122,20 +119,17 @@ export component SettingsPage inherits VerticalLayout {
                         }
                     }
                 }
-                Text {
-                    text: "Device enablement is managed on the Input Devices page. Physical devices are never enabled automatically.";
-                    font-size: 11px;
-                    color: Theme.muted;
-                    wrap: word-wrap;
-                }
             }
 
-            Card {
-                title: "Target selection";
+            Divider { }
+
+            Section {
+                title: "TARGET";
                 SettingRow {
-                    label: "Preferred selection mode";
+                    label: "Selection mode";
+                    hint: AppState.selection-mode == 0 ? "One specific window; if it closes, a window of the same app with the same title is used." : "Any window of the process; a restarted instance of the same executable is matched.";
                     ComboBox {
-                        width: 260px;
+                        width: 170px;
                         model: ["Window", "Process"];
                         current-index <=> AppState.selection-mode;
                         selected => {
@@ -144,7 +138,7 @@ export component SettingsPage inherits VerticalLayout {
                     }
                 }
                 SettingRow {
-                    label: "Select automatically when only one eligible application is open";
+                    label: "Select automatically when only one presentation app is open";
                     CheckBox {
                         checked <=> AppState.auto-select-single;
                         toggled => {
@@ -155,8 +149,8 @@ export component SettingsPage inherits VerticalLayout {
                 SettingRow {
                     label: "When the target disappears";
                     ComboBox {
-                        width: 260px;
-                        model: ["Rebind to an unambiguous match", "Always ask before rebinding"];
+                        width: 170px;
+                        model: ["Rebind if unambiguous", "Always ask"];
                         current-index <=> AppState.target-lost-policy;
                         selected => {
                             AppState.set-target-lost-policy(self.current-index);
@@ -164,10 +158,10 @@ export component SettingsPage inherits VerticalLayout {
                     }
                 }
                 SettingRow {
-                    label: "When another eligible application appears";
+                    label: "When another presentation app appears";
                     ComboBox {
-                        width: 260px;
-                        model: ["Keep the current target", "Ask which one to use"];
+                        width: 170px;
+                        model: ["Keep current target", "Ask"];
                         current-index <=> AppState.multiple-policy;
                         selected => {
                             AppState.set-multiple-policy(self.current-index);
@@ -175,12 +169,12 @@ export component SettingsPage inherits VerticalLayout {
                     }
                 }
                 SettingRow {
-                    label: "Global change-target shortcut";
+                    label: "Change-target shortcut";
                     hint: AppState.shortcut-status;
                     shortcut-edit := LineEdit {
-                        width: 160px;
+                        width: 130px;
                         text <=> AppState.shortcut;
-                        placeholder-text: "e.g. Ctrl+Alt+T";
+                        placeholder-text: "Ctrl+Alt+T";
                         accepted(text) => {
                             AppState.set-shortcut(text);
                         }
@@ -194,10 +188,12 @@ export component SettingsPage inherits VerticalLayout {
                 }
             }
 
-            Card {
-                title: "Input mappings";
+            Divider { }
+
+            Section {
+                title: "BUTTONS";
                 Text {
-                    text: "Mappings apply to every device that reports a button, regardless of model. Unmapped buttons are rejected by the router.";
+                    text: "Applies to every remote that has the button. Unmapped buttons do nothing.";
                     font-size: 11px;
                     color: Theme.muted;
                     wrap: word-wrap;
@@ -207,13 +203,26 @@ export component SettingsPage inherits VerticalLayout {
                 }
             }
 
-            Card {
-                title: "Logging and configuration";
+            Divider { }
+
+            Section {
+                title: "DIAGNOSTICS";
                 SettingRow {
-                    label: "Log verbosity";
-                    hint: "Applies to terminal output (RUST_LOG overrides it).";
+                    label: "Log file";
+                    hint: AppState.log-file == "" ? "No log file" : AppState.log-file;
+                    Button {
+                        text: "Open folder";
+                        enabled: AppState.log-file != "";
+                        clicked => {
+                            AppState.open-log-folder();
+                        }
+                    }
+                }
+                SettingRow {
+                    label: "Console log level";
+                    hint: "The log file always records debug details.";
                     ComboBox {
-                        width: 160px;
+                        width: 130px;
                         model: ["Error", "Warning", "Info", "Debug", "Trace"];
                         current-index <=> AppState.log-level;
                         selected => {
@@ -222,10 +231,10 @@ export component SettingsPage inherits VerticalLayout {
                     }
                 }
                 SettingRow {
-                    label: "Configuration file";
+                    label: "Configuration";
                     hint: AppState.config-path;
                     if !root.confirm-reset: Button {
-                        text: "Reset configuration…";
+                        text: "Reset…";
                         clicked => {
                             root.confirm-reset = true;
                         }
@@ -245,15 +254,9 @@ export component SettingsPage inherits VerticalLayout {
                         }
                     }
                 }
-            }
-
-            Card {
-                title: "Diagnostics — " + AppState.environment;
                 Text {
-                    text: "Native features are listed with their real implementation status. Nothing marked “Not implemented” is used.";
-                    font-size: 11px;
-                    color: Theme.muted;
-                    wrap: word-wrap;
+                    text: AppState.environment;
+                    font-weight: 600;
                 }
                 for cap[i] in AppState.capabilities: CapabilityItem {
                     cap: cap;
@@ -261,16 +264,18 @@ export component SettingsPage inherits VerticalLayout {
                 }
             }
 
-            Card {
-                title: "About";
+            Divider { }
+
+            Section {
+                title: "ABOUT";
                 Text {
-                    text: "RustClick " + AppState.version + " · GPL-3.0-only · Routes presentation-remote input to a chosen application.";
+                    text: "RustClick " + AppState.version + " · GPL-3.0-only";
                     wrap: word-wrap;
                 }
                 HorizontalLayout {
                     alignment: start;
                     AboutSlint {
-                        max-height: 160px;
+                        max-height: 140px;
                     }
                 }
             }

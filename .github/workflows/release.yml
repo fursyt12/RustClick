@@ -1,0 +1,61 @@
+name: Release
+
+# Builds the Windows package (rustclick.exe, rustclick-diag.exe, testing guide).
+# Pushing a tag such as v0.2.0-test.1 publishes it as a GitHub release; tags
+# containing "-" become pre-releases. A manual run only uploads the package
+# as a workflow artifact.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build metadata
+        shell: bash
+        run: |
+          echo "RUSTCLICK_BUILD=${GITHUB_REF_NAME}, ${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "PACKAGE_NAME=rustclick-${GITHUB_REF_NAME//\//-}-windows-x64" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: cargo build --release --locked --bins
+
+      - name: Package
+        shell: bash
+        run: |
+          dir="dist/$PACKAGE_NAME"
+          mkdir -p "$dir"
+          cp target/release/rustclick.exe target/release/rustclick-diag.exe "$dir/"
+          cp docs/windows-testing.md "$dir/README.md"
+          cp LICENSE "$dir/LICENSE.txt"
+          (cd dist && 7z a -tzip "$PACKAGE_NAME.zip" "$PACKAGE_NAME" > /dev/null)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+          path: dist/${{ env.PACKAGE_NAME }}.zip
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=()
+          [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" "dist/$PACKAGE_NAME.zip" \
+            --title "RustClick $GITHUB_REF_NAME" \
+            --notes "Windows build ($RUSTCLICK_BUILD). Unpack the zip and follow README.md: run rustclick-diag.exe first and send the report file it writes." \
+            "${flags[@]}"

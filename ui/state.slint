@@ -68,7 +68,8 @@ export struct CapabilityRow {
 }
 
 export global AppState {
-    // Navigation (UI-only state).
+    // Navigation (UI-only state): 0 home, 1 event log, 2 choose target,
+    // 3 settings, 4 simulator.
     in-out property <int> page: 0;
     in-out property <int> selected-device: 0;
 
@@ -124,6 +125,7 @@ export global AppState {
     in property <int> custom-action-index;
     in property <[CapabilityRow]> capabilities;
     in property <string> config-path;
+    in property <string> log-file;
     in property <string> environment;
     in property <string> version;
 
@@ -166,4 +168,5 @@ export global AppState {
     // button, action index, custom action name
     callback set-mapping(string, int, string);
     callback reset-config();
+    callback open-log-folder();
 }

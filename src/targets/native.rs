@@ -1,54 +1,64 @@
 //! Native target provider.
 //!
-//! Not implemented yet on any platform. Discovery fails explicitly and
-//! delivery always reports [`DeliveryOutcome::Unsupported`].
+//! On Windows this is the adapter in [`crate::platform::windows::targets`].
+//! Elsewhere it is not implemented yet: discovery fails explicitly and
+//! delivery always reports `DeliveryOutcome::Unsupported`.
 
-use crate::core::capabilities::Capability;
-use crate::core::mappings::Action;
-use crate::core::routing::{DeliveryOutcome, RouteTarget};
-use crate::core::targets::{TargetOrigin, TargetSnapshot};
-use crate::platform;
-use crate::provider::{ProviderError, ProviderSink};
+#[cfg(target_os = "windows")]
+pub use crate::platform::windows::targets::NativeTargetProvider;
 
-use super::TargetProvider;
+#[cfg(not(target_os = "windows"))]
+pub use stub::NativeTargetProvider;
 
-#[derive(Debug, Default)]
-pub struct NativeTargetProvider;
+#[cfg(not(target_os = "windows"))]
+mod stub {
+    use crate::core::capabilities::Capability;
+    use crate::core::mappings::Action;
+    use crate::core::routing::{DeliveryOutcome, RouteTarget};
+    use crate::core::targets::{TargetOrigin, TargetSnapshot};
+    use crate::platform;
+    use crate::provider::{ProviderError, ProviderSink};
 
-impl TargetProvider for NativeTargetProvider {
-    fn name(&self) -> &'static str {
-        "native targets"
-    }
+    use crate::targets::TargetProvider;
 
-    fn origin(&self) -> TargetOrigin {
-        TargetOrigin::Native
-    }
+    #[derive(Debug, Default)]
+    pub struct NativeTargetProvider {}
 
-    fn capabilities(&self) -> Vec<Capability> {
-        platform::target_capabilities()
-    }
+    impl TargetProvider for NativeTargetProvider {
+        fn name(&self) -> &'static str {
+            "native targets"
+        }
 
-    fn notifications_active(&self) -> bool {
-        false
-    }
+        fn origin(&self) -> TargetOrigin {
+            TargetOrigin::Native
+        }
 
-    fn start(&mut self, _sink: ProviderSink) -> Result<(), ProviderError> {
-        Ok(())
-    }
+        fn capabilities(&self) -> Vec<Capability> {
+            platform::target_capabilities()
+        }
 
-    fn stop(&mut self) {}
+        fn notifications_active(&self) -> bool {
+            false
+        }
 
-    fn snapshot(&mut self) -> Result<TargetSnapshot, ProviderError> {
-        Err(ProviderError::Unsupported(format!(
-            "Native window discovery is not implemented on {}",
-            platform::os_label()
-        )))
-    }
+        fn start(&mut self, _sink: ProviderSink) -> Result<(), ProviderError> {
+            Ok(())
+        }
 
-    fn deliver(&mut self, _target: &RouteTarget, _action: &Action) -> DeliveryOutcome {
-        DeliveryOutcome::Unsupported(format!(
-            "native delivery is not implemented on {}",
-            platform::os_label()
-        ))
+        fn stop(&mut self) {}
+
+        fn snapshot(&mut self) -> Result<TargetSnapshot, ProviderError> {
+            Err(ProviderError::Unsupported(format!(
+                "Native window discovery is not implemented on {}",
+                platform::os_label()
+            )))
+        }
+
+        fn deliver(&mut self, _target: &RouteTarget, _action: &Action) -> DeliveryOutcome {
+            DeliveryOutcome::Unsupported(format!(
+                "native delivery is not implemented on {}",
+                platform::os_label()
+            ))
+        }
     }
 }

@@ -32,7 +32,7 @@ RUST_LOG=rustclick=debug cargo run          # verbose logs (stderr)
 cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets
-cargo run --example screenshots -- target/shots 1120 760
+cargo run --example screenshots -- target/shots 560 680
 ```
 
 There is a single crate with no Cargo features, so `--all-features` is
@@ -71,6 +71,8 @@ src/core/                platform-independent logic (see architecture.md)
 src/input/               InputProvider trait; mock and native providers
 src/targets/             TargetProvider trait; mock and native providers
 src/platform/            per-OS capability reports
+src/platform/windows/    Windows adapter: Raw Input, HID++, windows, delivery
+src/bin/rustclick-diag.rs  Windows diagnostics tool (console)
 src/provider.rs          ProviderMessage, ProviderSink, ProviderError
 src/storage.rs           config location, atomic save, invalid-file handling
 src/logging.rs           tracing subscriber with runtime level changes
@@ -96,16 +98,35 @@ Windows, release builds use the GUI subsystem (no console window).
   ID and notarized. This is mandatory once native input needs Input
   Monitoring and Accessibility, because permissions are tied to the signature.
 
+### Windows test releases
+
+`.github/workflows/release.yml` builds `rustclick.exe` and
+`rustclick-diag.exe` on `windows-latest` and zips them with
+[windows-testing.md](windows-testing.md) as `README.md`. A pushed tag `v*`
+publishes the zip as a GitHub release (a pre-release if the tag contains a
+`-`); *Run workflow* uploads it as an artifact only. The build label
+(`RUSTCLICK_BUILD`: tag and commit) appears in *Settings → About*, in the log
+file and in diagnostic reports.
+
+```bash
+git tag v0.2.0-test.1 && git push origin v0.2.0-test.1
+```
+
 ## Cross-platform builds
 
 Building on Arch does **not** validate Windows or macOS packages.
 
-* The platform modules (`src/platform/windows.rs`, `macos.rs`) contain no OS
-  API calls yet, so they compile anywhere their target's std is available.
-  CI builds and tests on Windows and macOS runners for that reason.
+* `src/platform/windows/` calls Win32 through `windows-sys` and opens HID
+  devices through `hidapi`; both are Windows-only dependencies, so Linux and
+  macOS builds are unaffected. CI builds and tests on Windows and macOS
+  runners.
 * Cross-checking Windows from Arch:
   `rustup target add x86_64-pc-windows-gnu` (MinGW: `mingw-w64-gcc`), then
-  `cargo check --target x86_64-pc-windows-gnu`. Produce release artifacts
+  `cargo clippy --target x86_64-pc-windows-gnu --all-targets -- -D warnings`.
+  With Wine installed, the Windows tests run too:
+  `CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine cargo test --target x86_64-pc-windows-gnu`.
+  Wine has no real HID devices or presentation applications, so this checks
+  only that the adapter starts, enumerates and shuts down cleanly. Produce release artifacts
   with the MSVC toolchain on Windows (or `cargo-xwin`).
 * macOS cannot be legally cross-compiled without the Apple SDK. Build, sign
   and notarize on macOS (CI runner).
@@ -119,5 +140,5 @@ Building on Arch does **not** validate Windows or macOS packages.
   capabilities honestly. Never return `Delivered` or `Supported` for
   something that has not been verified.
 * UI changes: run the screenshots example at default size and at the minimum
-  window size (900×600) and look at the result. It writes each page in the
+  window size (460×520) and look at the result. It writes each page in the
   light and dark color schemes (`*-dark.png`).

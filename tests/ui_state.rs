@@ -5,10 +5,13 @@ mod common;
 use common::*;
 use rustclick::app::{Command, Severity};
 use rustclick::core::capabilities::CapabilityStatus;
-use rustclick::core::config::{Config, InputMode};
+#[cfg(not(target_os = "windows"))]
+use rustclick::core::config::Config;
+use rustclick::core::config::InputMode;
 use rustclick::core::input::DeviceId;
 use rustclick::targets::mock::MockApp;
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn unimplemented_native_mode_is_reported_honestly() {
     let config = Config {
@@ -35,6 +38,7 @@ fn unimplemented_native_mode_is_reported_honestly() {
     assert!(native.iter().any(|c| c.status == CapabilityStatus::Error));
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn native_mode_cannot_be_selected_while_unimplemented() {
     let mut s = service_with(&[MockApp::PowerPoint]);
@@ -46,6 +50,40 @@ fn native_mode_cannot_be_selected_while_unimplemented() {
         "{}",
         view.log[0].message
     );
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn windows_native_mode_is_experimental_and_says_what_is_missing() {
+    let mut s = service_with(&[MockApp::PowerPoint]);
+    s.execute(Command::SetInputMode(InputMode::Native));
+    let view = s.view();
+    assert_eq!(view.input_mode, InputMode::Native);
+    assert!(view.native_mode.is_ok());
+    let native: Vec<_> = view
+        .capabilities
+        .iter()
+        .filter(|s| s.title.starts_with("Native"))
+        .flat_map(|s| &s.items)
+        .collect();
+    assert!(
+        native
+            .iter()
+            .any(|c| c.status == CapabilityStatus::Experimental)
+    );
+    assert!(
+        native
+            .iter()
+            .all(|c| c.optional || c.status.is_operational())
+    );
+    assert!(
+        view.warnings
+            .iter()
+            .any(|w| w.contains("Input suppression")),
+        "{:?}",
+        view.warnings
+    );
+    s.execute(Command::SetInputMode(InputMode::Simulation));
 }
 
 #[test]

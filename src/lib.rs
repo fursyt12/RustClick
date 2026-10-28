@@ -20,6 +20,15 @@ pub mod provider;
 pub mod storage;
 pub mod targets;
 
+/// Version shown to users. Release builds made by CI append the tag and
+/// commit (`RUSTCLICK_BUILD`), so reports can be matched to a build.
+pub fn version() -> String {
+    match option_env!("RUSTCLICK_BUILD") {
+        Some(build) if !build.is_empty() => format!("{} ({build})", env!("CARGO_PKG_VERSION")),
+        _ => env!("CARGO_PKG_VERSION").to_owned(),
+    }
+}
+
 /// Types generated from `ui/*.slint` by `build.rs`.
 pub mod ui {
     slint::include_modules!();

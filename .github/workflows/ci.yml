@@ -9,15 +9,22 @@ env:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    # Windows has its own adapter code (src/platform/windows/), so it is linted too.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - name: System libraries
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev
       - run: cargo fmt --check
+        if: runner.os == 'Linux'
       - run: cargo clippy --all-targets --all-features --locked -- -D warnings
 
   test:

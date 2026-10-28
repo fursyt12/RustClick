@@ -271,6 +271,7 @@ pub struct ViewModel {
     pub capabilities: Vec<CapabilitySection>,
     pub shortcut: Capability,
     pub config_path: Option<String>,
+    pub log_file: Option<String>,
     pub environment: String,
     pub dropped_events: u64,
 }
@@ -297,6 +298,7 @@ pub struct AppService {
     tx: SyncSender<Msg>,
     rx: Receiver<Msg>,
     on_log_level: Option<Box<dyn Fn(LogLevel) + Send>>,
+    log_file: Option<String>,
 }
 
 impl AppService {
@@ -325,9 +327,9 @@ impl AppService {
             devices: DeviceRegistry::default(),
             router: Router::default(),
             mock_input: MockInputProvider::new(),
-            native_input: NativeInputProvider,
+            native_input: NativeInputProvider::default(),
             mock_targets,
-            native_targets: NativeTargetProvider,
+            native_targets: NativeTargetProvider::default(),
             snapshot: TargetSnapshot::empty(TargetOrigin::Simulated),
             input_error: None,
             targets_error: None,
@@ -340,6 +342,7 @@ impl AppService {
             tx,
             rx,
             on_log_level: None,
+            log_file: None,
         };
         for w in service.startup_warnings.clone() {
             service.push_log(LogCategory::System, Severity::Warning, w);
@@ -361,6 +364,11 @@ impl AppService {
     /// Called whenever the configured log level changes.
     pub fn set_log_level_hook(&mut self, hook: Box<dyn Fn(LogLevel) + Send>) {
         self.on_log_level = Some(hook);
+    }
+
+    /// Where the log file is written, for display.
+    pub fn set_log_file(&mut self, path: Option<String>) {
+        self.log_file = path;
     }
 
     pub fn sender(&self) -> CommandSender {
@@ -549,13 +557,18 @@ impl AppService {
         }
     }
 
-    /// Native mode is offered only if every native capability is supported.
+    /// Native mode is offered only if every required native capability is
+    /// operational (supported or experimental).
     fn native_mode_availability() -> Result<(), String> {
         let caps: Vec<Capability> = platform::input_capabilities()
             .into_iter()
             .chain(platform::target_capabilities())
             .collect();
-        if caps.iter().all(|c| c.status.is_operational()) {
+        if caps
+            .iter()
+            .filter(|c| !c.optional)
+            .all(|c| c.status.is_operational())
+        {
             Ok(())
         } else {
             Err(format!(
@@ -980,6 +993,18 @@ impl AppService {
 
     fn on_device_added(&mut self, info: DeviceInfo) {
         let pref = self.config.device(&info.id).map(|d| d.enabled);
+        // A physical device the user enabled in an earlier session is
+        // enabled again in its provider, which only captures enabled devices.
+        if info.kind == DeviceKind::Physical
+            && pref == Some(true)
+            && let Err(e) = self.native_input.set_device_enabled(&info.id, true)
+        {
+            self.push_log(
+                LogCategory::Device,
+                Severity::Warning,
+                format!("Could not enable {}: {e}", info.name),
+            );
+        }
         let text = match (info.kind, pref) {
             (DeviceKind::Physical, None) => format!(
                 "New physical device {} detected; it stays disabled until you enable it",
@@ -1035,7 +1060,9 @@ impl AppService {
                 );
                 let outcome = self.active_targets().deliver(&target, &action);
                 let severity = match outcome {
-                    DeliveryOutcome::Simulated | DeliveryOutcome::Delivered => Severity::Success,
+                    DeliveryOutcome::Simulated
+                    | DeliveryOutcome::Delivered
+                    | DeliveryOutcome::Sent(_) => Severity::Success,
                     DeliveryOutcome::Unsupported(_) => Severity::Warning,
                     DeliveryOutcome::Failed(_) => Severity::Error,
                 };
@@ -1214,22 +1241,27 @@ impl AppService {
         sections
     }
 
-    fn warnings(&self, routing: &RoutingState) -> Vec<String> {
+    /// Problems the user should act on. Routing state and pending target
+    /// confirmation are shown by the UI itself and are not repeated here.
+    fn warnings(&self) -> Vec<String> {
         let mut warnings = self.startup_warnings.clone();
         if self.config.input_mode == InputMode::Native {
-            warnings.push(format!(
-                "Native mode is selected, but native input and target adapters are not implemented on {}. Switch to Simulation mode to test routing.",
-                platform::os_label()
-            ));
+            match Self::native_mode_availability() {
+                Err(_) => warnings.push(format!(
+                    "Native mode is selected, but native input and target adapters are not implemented on {}. Switch to Simulation mode to test routing.",
+                    platform::os_label()
+                )),
+                Ok(()) => warnings.extend(
+                    platform::input_capabilities()
+                        .into_iter()
+                        .chain(platform::target_capabilities())
+                        .filter(|c| !c.status.is_operational())
+                        .map(|c| format!("{}: {}. {}", c.component, c.status, c.detail)),
+                ),
+            }
         }
         if let Some(e) = &self.targets_error {
             warnings.push(e.clone());
-        }
-        if self.selection.prompt().is_some() {
-            warnings.push("Target confirmation required before routing can continue".into());
-        }
-        if let RoutingState::Paused(r) = routing {
-            warnings.push(format!("Routing paused: {r}"));
         }
         if let Some(c) = self.selection.criteria()
             && !c.identity.is_stable()
@@ -1371,7 +1403,7 @@ impl AppService {
             mock_notifications: self.mock_targets.notifications_enabled(),
             last_event: self.last_event.clone(),
             last_result: self.last_result.clone(),
-            warnings: self.warnings(&routing),
+            warnings: self.warnings(),
             routing,
             log: self.log.iter().rev().cloned().collect(),
             mappings: self.mapping_views(),
@@ -1380,6 +1412,7 @@ impl AppService {
             capabilities: self.capability_sections(),
             shortcut: platform::shortcut_capability(),
             config_path: self.store.as_ref().map(|s| s.path().display().to_string()),
+            log_file: self.log_file.clone(),
             environment: platform::environment(),
             dropped_events: self.dropped_events.load(Ordering::Relaxed),
         }

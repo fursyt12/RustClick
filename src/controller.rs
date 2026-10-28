@@ -235,6 +235,16 @@ pub fn bind(ui: &AppWindow, sender: CommandSender) {
     });
     on!(on_reset_config, || Some(Command::ResetConfig));
 
+    // Opening the log folder is a local desktop action, not a service command.
+    let weak = ui.as_weak();
+    state.on_open_log_folder(move || {
+        let Some(ui) = weak.upgrade() else { return };
+        let file = ui.global::<AppState>().get_log_file();
+        if let Some(dir) = std::path::Path::new(file.as_str()).parent() {
+            open_folder(dir);
+        }
+    });
+
     // The log filter is a pure view concern handled locally.
     let weak = ui.as_weak();
     state.on_set_log_filter(move |filter| {
@@ -254,8 +264,21 @@ pub fn bind(ui: &AppWindow, sender: CommandSender) {
         .chain(std::iter::once("Custom…".into()))
         .collect();
     state.set_action_names(model(action_names));
-    state.set_version(env!("CARGO_PKG_VERSION").into());
+    state.set_version(crate::version().into());
     state.set_custom_action_index(CUSTOM_ACTION_INDEX as i32);
+}
+
+fn open_folder(dir: &std::path::Path) {
+    let program = if cfg!(target_os = "windows") {
+        "explorer"
+    } else if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    if let Err(e) = std::process::Command::new(program).arg(dir).spawn() {
+        tracing::warn!("could not open {}: {e}", dir.display());
+    }
 }
 
 fn log_model(log: &[LogEntry], filter: i32) -> ModelRc<LogRow> {
@@ -380,6 +403,7 @@ pub fn apply(ui: &AppWindow, view: ViewModel) {
                 .into(),
         );
         state.set_environment(view.environment.as_str().into());
+        state.set_log_file(view.log_file.clone().unwrap_or_default().into());
 
         if changed(&|p| p.warnings != view.warnings) {
             state.set_warnings(model(
@@ -430,9 +454,11 @@ pub fn apply(ui: &AppWindow, view: ViewModel) {
             state.set_processes(model(rows));
         }
         if changed(&|p| p.windows != view.windows) {
-            let rows = view
-                .windows
-                .iter()
+            // Presentation applications first; the sort is stable otherwise.
+            let mut windows: Vec<_> = view.windows.iter().collect();
+            windows.sort_by_key(|w| !w.eligible);
+            let rows = windows
+                .into_iter()
                 .map(|w| WindowRow {
                     key: window_key(w.id),
                     process_key: process_key(w.process),
@@ -484,6 +510,7 @@ pub fn apply(ui: &AppWindow, view: ViewModel) {
         if changed(&|p| p.capabilities != view.capabilities || p.shortcut != view.shortcut) {
             let level = |s: CapabilityStatus| match s {
                 CapabilityStatus::Supported => 1,
+                CapabilityStatus::Experimental => 0,
                 CapabilityStatus::Error => 3,
                 CapabilityStatus::NotImplemented
                 | CapabilityStatus::Unsupported

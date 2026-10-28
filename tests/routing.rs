@@ -235,8 +235,15 @@ fn native_delivery_never_claims_success() {
         origin: TargetOrigin::Native,
         generation: 0,
     };
-    let outcome = NativeTargetProvider.deliver(&target, &Action::Next);
-    assert!(matches!(outcome, DeliveryOutcome::Unsupported(_)));
+    // Unsupported where no adapter exists; on Windows the window does not exist.
+    let outcome = NativeTargetProvider::default().deliver(&target, &Action::Next);
+    assert!(
+        matches!(
+            outcome,
+            DeliveryOutcome::Unsupported(_) | DeliveryOutcome::Failed(_)
+        ),
+        "{outcome}"
+    );
 }
 
 #[test]
@@ -252,13 +259,18 @@ fn native_mode_disables_simulation_controls() {
 
     let view = s.view();
     assert!(
-        view.devices.is_empty(),
+        view.devices.iter().all(|d| !d.simulated),
         "mock devices are not active in native mode"
     );
     assert!(
-        view.windows.is_empty(),
+        view.windows
+            .iter()
+            .all(|w| !w.title.contains("Quarterly Review") && !w.title.contains("Handout")),
         "mock windows are not offered as native targets"
     );
+    // Elsewhere native mode cannot start at all; on Windows a real window
+    // could be selected automatically if PowerPoint happens to be open.
+    #[cfg(not(target_os = "windows"))]
     assert!(view.can_start.is_err());
     assert_eq!(s.mock_targets().total_received(), 0);
 }

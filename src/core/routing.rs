@@ -189,6 +189,9 @@ pub enum DeliveryOutcome {
     Simulated,
     /// Delivered to a native application.
     Delivered,
+    /// Handed to the platform (e.g. a posted window message), but whether the
+    /// application acted on it cannot be confirmed.
+    Sent(String),
     /// The provider cannot deliver actions (e.g. not implemented).
     Unsupported(String),
     /// Delivery was attempted and failed; the target may have disappeared.
@@ -200,6 +203,7 @@ impl fmt::Display for DeliveryOutcome {
         match self {
             Self::Simulated => f.write_str("simulated delivery to mock target"),
             Self::Delivered => f.write_str("delivered to native application"),
+            Self::Sent(how) => write!(f, "sent to native application ({how}); effect not verified"),
             Self::Unsupported(r) => write!(f, "delivery unsupported: {r}"),
             Self::Failed(r) => write!(f, "delivery failed: {r}"),
         }

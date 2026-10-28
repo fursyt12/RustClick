@@ -51,8 +51,8 @@ fn capture(window: &MinimalSoftwareWindow, size: PhysicalSize, path: &Path) -> a
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
     let out = PathBuf::from(args.next().unwrap_or_else(|| "screenshots".into()));
-    let width = args.next().map_or(Ok(1120), |s| s.parse())?;
-    let height = args.next().map_or(Ok(760), |s| s.parse())?;
+    let width = args.next().map_or(Ok(560), |s| s.parse())?;
+    let height = args.next().map_or(Ok(680), |s| s.parse())?;
     std::fs::create_dir_all(&out).context("creating output directory")?;
 
     let window = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
@@ -92,10 +92,11 @@ fn main() -> anyhow::Result<()> {
     for (scheme, suffix) in [(ColorScheme::Light, ""), (ColorScheme::Dark, "-dark")] {
         ui.set_color_scheme(scheme);
         for (page, name) in [
-            (0, "dashboard"),
-            (1, "devices"),
-            (2, "targets"),
+            (0, "home"),
+            (1, "log"),
+            (2, "target"),
             (3, "settings"),
+            (4, "simulator"),
         ] {
             state.set_page(page);
             capture(&window, size, &out.join(format!("{name}{suffix}.png")))?;

@@ -86,10 +86,16 @@ fn ui_callbacks_drive_the_service_and_views_update_the_ui() {
     assert_eq!(aux.custom, "notes");
 
     // A UI-side value the service rejects snaps back on the next update.
-    state.set_input_mode(1);
-    state.invoke_set_input_mode(1);
-    service.pump();
-    controller::apply(&ui, service.view());
-    assert_eq!(state.get_input_mode(), 0);
-    assert!(!state.get_native_available());
+    // (Native mode exists on Windows, so it cannot serve as the example there.)
+    #[cfg(not(target_os = "windows"))]
+    {
+        state.set_input_mode(1);
+        state.invoke_set_input_mode(1);
+        service.pump();
+        controller::apply(&ui, service.view());
+        assert_eq!(state.get_input_mode(), 0);
+        assert!(!state.get_native_available());
+    }
+    #[cfg(target_os = "windows")]
+    assert!(state.get_native_available());
 }
